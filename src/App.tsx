@@ -29,7 +29,7 @@ async function postJSON(path: string, body: any) {
 /** Fire-and-forget event logger to Netlify */
 async function postEvent(label: string, payload?: any) {
   try {
-    await postJSON("/.netlify/functions/events-log", { label, ...(payload || {}) });
+    await postJSON("/api/events-log", { label, ...(payload || {}) });
   } catch (err) {
     // Non-fatal; avoid blocking UX on analytics
     console.warn("event log failed", err);
@@ -158,7 +158,7 @@ export default function App() {
       setSearchResults([]);
       const communityId = companyId || accessCompanyId;
       if (!communityId) throw new Error("Community ID required");
-      const out: any = await postJSON(`/.netlify/functions/search-${kind}`, {
+      const out: any = await postJSON(`/api/search-${kind}`, {
         q: query,
         communityId,
         label: `ui.search.${kind}`,
@@ -242,7 +242,7 @@ export default function App() {
                   onClick={async () => {
                     try {
                       if (!companyId || !apiKey) return alert("Enter Community ID and API Key");
-                      const out = await postJSON("/.netlify/functions/portal-credentials", {
+                      const out = await postJSON("/api/portal-credentials", {
                         communityId: companyId,
                         apiKey,
                       });
@@ -285,7 +285,7 @@ export default function App() {
                       if (!portalPw || portalPw.length < 8)
                         return alert("Password must be at least 8 characters.");
                       if (portalPw !== portalPw2) return alert("Passwords do not match.");
-                      const out = await postJSON("/.netlify/functions/portal-password", {
+                      const out = await postJSON("/api/portal-password", {
                         communityId: companyId || accessCompanyId,
                         newPassword: portalPw,
                       });
@@ -300,7 +300,7 @@ export default function App() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Calls <code>/.netlify/functions/portal-password</code>.
+                Calls <code>/api/portal-password</code>.
               </p>
             </Section>
 
@@ -342,7 +342,7 @@ export default function App() {
                   onClick={async () => {
                     try {
                       if (!accessCompanyId || !accessPw) return alert("Enter Community ID and password");
-                      const out = await postJSON("/.netlify/functions/access-login", {
+                      const out = await postJSON("/api/access-login", {
                         communityId: accessCompanyId,
                         password: accessPw,
                       });
@@ -363,7 +363,7 @@ export default function App() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Calls <code>/.netlify/functions/access-login</code> and sets an access session on success.
+                Calls <code>/api/access-login</code> and sets an access session on success.
               </p>
             </Section>
 
@@ -781,7 +781,7 @@ function DetailsView({
                   notes: (data["Notes (optional)"] as string) || undefined,
                   label: "contact.submit",
                 };
-                const out = await postJSON("/.netlify/functions/contact-submit", payload);
+                const out = await postJSON("/api/contact-submit", payload);
                 console.log("contact-submit →", out);
                 alert("Thanks! Your update was submitted.");
                 form.reset();
@@ -850,7 +850,7 @@ function AddBusinessView({ onCancel, communityId }: { onCancel: () => void; comm
                 notes: (data["notes"] as string) || undefined,
                 label: "business.create",
               };
-              const out = await postJSON("/.netlify/functions/business-create", payload);
+              const out = await postJSON("/api/business-create", payload);
               console.log("business-create →", out);
               alert("Thanks! Your business was submitted.");
               logEvent("business_create_submitted", { name: payload.name });
