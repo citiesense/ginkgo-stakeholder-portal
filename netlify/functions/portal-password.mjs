@@ -1,1 +1,14 @@
-import { ok,bad,forward,getBody } from './_utils.mjs';export async function handler(e){const {communityId,newPassword}=getBody(e);if(!communityId||!newPassword)return bad('communityId and newPassword required');if(process.env.DEMO_MODE==='true')return ok({ok:true,demo:true});const u=process.env.WEBHOOK_URL_PORTAL_PASSWORD;if(!u)return bad('WEBHOOK_URL_PORTAL_PASSWORD not set',500);const o=await forward(u,{communityId,newPassword});return {statusCode:o.statusCode,body:o.body}}
+import { ok, bad, forward, getBody } from './_utils.mjs';
+
+export async function handler(e){
+  const { communityId, newPassword } = getBody(e);
+  if (!communityId || !newPassword) return bad('communityId and newPassword required');
+  if (process.env.DEMO_MODE === 'true') return ok({ ok: true, demo: true });
+
+  const u = process.env.WEBHOOK_URL_PORTAL_PASSWORD;
+  if (!u) return bad('WEBHOOK_URL_PORTAL_PASSWORD not set', 500);
+
+  const payload = { communityId, newPassword, label: 'portal.password.set', source: 'stakeholder-portal' };
+  const o = await forward(u, payload);
+  return { statusCode: o.statusCode, body: o.body };
+}
