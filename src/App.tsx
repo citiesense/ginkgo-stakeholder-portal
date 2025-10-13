@@ -143,6 +143,21 @@ export default function App() {
   const [accessCompanyId, setAccessCompanyId] = useState("");
   const [accessPw, setAccessPw] = useState("");
   const [hasAccess, setHasAccess] = useState(false);
+  const [communityMeta, setCommunityMeta] = useState<{ name?: string } | null>(null);
+  // Parse communityId from URL (?communityId=...) and prefetch name
+  React.useEffect(() => {
+    try {
+      const u = new URL(window.location.href);
+      const cid = u.searchParams.get('communityId') || u.pathname.split('/').filter(Boolean).pop();
+      if (cid && !accessCompanyId) {
+        setAccessCompanyId(cid);
+        // Fetch community info for display (non-blocking)
+        postJSON('/api/community-info', { communityId: cid })
+          .then((info: any) => setCommunityMeta({ name: info?.name }))
+          .catch(() => {});
+      }
+    } catch {}
+  }, []);
 
   // Search & details state
   const [query, setQuery] = useState("");
@@ -183,7 +198,7 @@ export default function App() {
             <span className="text-sm tracking-wide text-gray-700">Ginkgo</span>
             <span className="text-sm text-gray-400">•</span>
             <span className="text-sm font-medium" style={{ color: brand.navy }}>
-              Stakeholder Lookup (MVP)
+              Stakeholder Lookup {communityMeta?.name ? `– ${communityMeta.name}` : '(MVP)'}
             </span>
           </div>
           <nav className="flex items-center gap-2 text-sm">
@@ -216,7 +231,8 @@ export default function App() {
       <main className="mx-auto max-w-6xl px-4 py-8 grid gap-6">
         {view === "launch" && (
           <>
-            <Hero onTry={() => setView("access")} />
+            {/* Hero without mockup CTA */}
+            <Hero onTry={() => setView("access")} hideCta />
 
             <Section
               title="Activate this portal"
@@ -320,7 +336,11 @@ export default function App() {
           <>
             <Section
               title="Portal Access"
-              subtitle="Enter your organization’s Community ID and the portal password provided by your BID/District."
+              subtitle={
+                communityMeta?.name
+                  ? `You're accessing ${communityMeta.name}. Enter the portal password.`
+                  : "Enter your organization’s Community ID and the portal password provided by your BID/District."
+              }
             >
               <div className="grid md:grid-cols-3 gap-3">
                 <input
@@ -328,6 +348,7 @@ export default function App() {
                   placeholder="Community ID"
                   value={accessCompanyId}
                   onChange={(e) => setAccessCompanyId(e.target.value)}
+                  readOnly={!!communityMeta?.name}
                 />
                 <input
                   className="border rounded-lg p-2"
@@ -565,7 +586,7 @@ export default function App() {
 }
 
 /** Hero */
-function Hero({ onTry }: { onTry: () => void }) {
+function Hero({ onTry, hideCta }: { onTry: () => void; hideCta?: boolean }) {
   return (
     <div className="relative overflow-hidden rounded-3xl border shadow-sm" style={{ background: brand.navy }}>
       <div className="p-8 md:p-12 text-white">
@@ -574,27 +595,29 @@ function Hero({ onTry }: { onTry: () => void }) {
           Let property owners and business representatives look up their record, verify identity, reveal contact details,
           submit updates, or add a missing business—without creating an account.
         </p>
-        <div className="mt-5 flex gap-3">
-          <a
-            className="px-4 py-2 rounded-xl text-sm font-medium"
-            style={{ background: brand.orange }}
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              onTry();
-            }}
-          >
-            ▶︎ Try the interactive mockup
-          </a>
-          <a
-            className="px-4 py-2 rounded-xl text-sm font-medium border border-white/30"
-            href="https://api.ginkgo.city/#!/community/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            View Ginkgo API
-          </a>
-        </div>
+        {!hideCta && (
+          <div className="mt-5 flex gap-3">
+            <a
+              className="px-4 py-2 rounded-xl text-sm font-medium"
+              style={{ background: brand.orange }}
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onTry();
+              }}
+            >
+              ▶︎ Try the interactive mockup
+            </a>
+            <a
+              className="px-4 py-2 rounded-xl text-sm font-medium border border-white/30"
+              href="https://api.ginkgo.city/#!/community/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View Ginkgo API
+            </a>
+          </div>
+        )}
       </div>
       <div className="absolute -right-10 -bottom-10 w-64 h-64 rounded-full opacity-20" style={{ background: brand.teal }} />
     </div>
