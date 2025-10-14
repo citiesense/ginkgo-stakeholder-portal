@@ -26,6 +26,16 @@ async function postJSON(path: string, body: any) {
   return data ?? {};
 }
 
+/** Fire-and-forget event logger to Netlify */
+async function postEvent(label: string, payload?: any) {
+  try {
+    await postJSON("/api/events-log", { label, ...(payload || {}) });
+  } catch (err) {
+    // Non-fatal; avoid blocking UX on analytics
+    console.warn("event log failed", err);
+  }
+}
+
 type View =
   | "launch"
   | "access"
@@ -133,21 +143,87 @@ export default function App() {
   const [accessCompanyId, setAccessCompanyId] = useState("");
   const [accessPw, setAccessPw] = useState("");
   const [hasAccess, setHasAccess] = useState(false);
+  const [communityMeta, setCommunityMeta] = useState<{ name?: string } | null>(null);
+  // Parse communityId from URL (?communityId=...) and prefetch name
+  React.useEffect(() => {
+    try {
+      const u = new URL(window.location.href);
+      const cid = u.searchParams.get('communityId') || u.pathname.split('/').filter(Boolean).pop();
+      if (cid && !accessCompanyId) {
+        setAccessCompanyId(cid);
+        // Fetch community info for display (non-blocking)
+        postJSON('/api/community-info', { communityId: cid })
+          .then((info: any) => setCommunityMeta({ name: info?.name }))
+          .catch(() => {});
+      }
+    } catch {}
+  }, []);
 
   // Search & details state
   const [query, setQuery] = useState("");
   const [detail, setDetail] = useState<{ type: "business" | "property"; id: string } | null>(null);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [contactResults, setContactResults] = useState<{contacts:any[]; businesses:any[]; properties:any[]}|null>(null);
 
-  const results = useMemo(() => {
-    const q = query.toLowerCase();
-    if (view === "search-business") {
-      return DEMO_BUSINESSES.filter((b) => (b.name + " " + b.addr).toLowerCase().includes(q));
+  async function handleSearch(kind: "business" | "property") {
+    try {
+      setIsSearching(true);
+      setSearchError(null);
+      setSearchResults([]);
+      setContactResults(null);
+      const communityId = companyId || accessCompanyId;
+      if (!communityId) throw new Error("Community ID required");
+      const out: any = await postJSON(`/api/search-${kind}`, {
+        q: query,
+        communityId,
+        label: `ui.search.${kind}`,
+      });
+      const items = Array.isArray(out) ? out : out.results || [];
+      setSearchResults(items);
+      postEvent("ui.search", { kind, query, count: items.length, communityId });
+    } catch (e: any) {
+      setSearchError(e.message || "Search failed");
+    } finally {
+      setIsSearching(false);
     }
-    if (view === "search-property") {
-      return DEMO_PROPERTIES.filter((p) => (p.address + " " + p.bbl).toLowerCase().includes(q));
+  }
+
+  async function handlePrimarySearch() {
+    try {
+      setIsSearching(true);
+      setSearchError(null);
+      setSearchResults([]);
+      setContactResults(null);
+      const communityId = companyId || accessCompanyId;
+      if (!communityId) throw new Error("Community ID required");
+      const hasEmail = query.includes('@');
+      const digits = query.replace(/\D+/g, '');
+      if (hasEmail || digits.length >= 7) {
+        const out: any = await postJSON(`/api/search-associated-by-contact`, {
+          communityId,
+          email: hasEmail ? query : '',
+          phone: hasEmail ? '' : query,
+        });
+        if ((out?.contacts?.length || 0) + (out?.businesses?.length || 0) + (out?.properties?.length || 0) > 0) {
+          setContactResults({ contacts: out.contacts||[], businesses: out.businesses||[], properties: out.properties||[] });
+          return;
+        }
+      }
+      // Fallback to text searches
+      const [biz, prop]: any = await Promise.all([
+        postJSON(`/api/search-business`, { communityId, q: query }),
+        postJSON(`/api/search-property`, { communityId, q: query }),
+      ]);
+      const combined = [ ...(biz?.results||[]), ...(prop?.results||[]) ];
+      setSearchResults(combined);
+    } catch (e:any) {
+      setSearchError(e.message || 'Search failed');
+    } finally {
+      setIsSearching(false);
     }
-    return [] as any[];
-  }, [query, view]);
+  }
 
   return (
     <div className="min-h-screen" style={{ background: brand.bg }}>
@@ -159,7 +235,7 @@ export default function App() {
             <span className="text-sm tracking-wide text-gray-700">Ginkgo</span>
             <span className="text-sm text-gray-400">•</span>
             <span className="text-sm font-medium" style={{ color: brand.navy }}>
-              Stakeholder Lookup (MVP)
+              Stakeholder Lookup {communityMeta?.name ? `– ${communityMeta.name}` : '(MVP)'}
             </span>
           </div>
           <nav className="flex items-center gap-2 text-sm">
@@ -192,7 +268,8 @@ export default function App() {
       <main className="mx-auto max-w-6xl px-4 py-8 grid gap-6">
         {view === "launch" && (
           <>
-            <Hero onTry={() => setView("access")} />
+            {/* Hero without mockup CTA */}
+            <Hero onTry={() => setView("access")} hideCta />
 
             <Section
               title="Activate this portal"
@@ -218,7 +295,7 @@ export default function App() {
                   onClick={async () => {
                     try {
                       if (!companyId || !apiKey) return alert("Enter Community ID and API Key");
-                      const out = await postJSON("/.netlify/functions/portal-credentials", {
+                      const out = await postJSON("/api/portal-credentials", {
                         communityId: companyId,
                         apiKey,
                       });
@@ -261,7 +338,7 @@ export default function App() {
                       if (!portalPw || portalPw.length < 8)
                         return alert("Password must be at least 8 characters.");
                       if (portalPw !== portalPw2) return alert("Passwords do not match.");
-                      const out = await postJSON("/.netlify/functions/portal-password", {
+                      const out = await postJSON("/api/portal-password", {
                         communityId: companyId || accessCompanyId,
                         newPassword: portalPw,
                       });
@@ -276,7 +353,7 @@ export default function App() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Calls <code>/.netlify/functions/portal-password</code>.
+                Calls <code>/api/portal-password</code>.
               </p>
             </Section>
 
@@ -296,7 +373,11 @@ export default function App() {
           <>
             <Section
               title="Portal Access"
-              subtitle="Enter your organization’s Community ID and the portal password provided by your BID/District."
+              subtitle={
+                communityMeta?.name
+                  ? `You're accessing ${communityMeta.name}. Enter the portal password.`
+                  : "Enter your organization’s Community ID and the portal password provided by your BID/District."
+              }
             >
               <div className="grid md:grid-cols-3 gap-3">
                 <input
@@ -304,6 +385,7 @@ export default function App() {
                   placeholder="Community ID"
                   value={accessCompanyId}
                   onChange={(e) => setAccessCompanyId(e.target.value)}
+                  readOnly={!!communityMeta?.name}
                 />
                 <input
                   className="border rounded-lg p-2"
@@ -318,7 +400,7 @@ export default function App() {
                   onClick={async () => {
                     try {
                       if (!accessCompanyId || !accessPw) return alert("Enter Community ID and password");
-                      const out = await postJSON("/.netlify/functions/access-login", {
+                      const out = await postJSON("/api/access-login", {
                         communityId: accessCompanyId,
                         password: accessPw,
                       });
@@ -339,7 +421,7 @@ export default function App() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Calls <code>/.netlify/functions/access-login</code> and sets an access session on success.
+                Calls <code>/api/access-login</code> and sets an access session on success.
               </p>
             </Section>
 
@@ -367,7 +449,7 @@ export default function App() {
                   onClick={async () => {
                     try {
                       if (!companyId || !apiKey) return alert("Enter Community ID and API Key");
-                      const out = await postJSON("/.netlify/functions/portal-credentials", {
+                      const out = await postJSON("/api/portal-credentials", {
                         communityId: companyId,
                         apiKey,
                       });
@@ -382,7 +464,7 @@ export default function App() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Calls <code>/.netlify/functions/portal-credentials</code>.
+                Calls <code>/api/portal-credentials</code>.
               </p>
             </Section>
           </>
@@ -390,16 +472,21 @@ export default function App() {
 
         {view === "search-business" && (
           <>
-            <Section title="Search Businesses">
+            <Section title="Search">
               <div className="flex gap-2 items-start">
                 <input
                   className="flex-1 border rounded-lg p-2"
-                  placeholder="Name or address…"
+                  placeholder="Email or phone (primary). Or enter text to search."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
-                <button className="rounded-xl px-4 py-2 text-white font-medium" style={{ background: brand.orange }}>
-                  Search
+                <button
+                  className="rounded-xl px-4 py-2 text-white font-medium disabled:opacity-50"
+                  style={{ background: brand.orange }}
+                  onClick={handlePrimarySearch}
+                  disabled={isSearching}
+                >
+                  {isSearching ? "Searching…" : "Search"}
                 </button>
                 <button
                   className="rounded-xl px-4 py-2 text-white font-medium"
@@ -409,22 +496,66 @@ export default function App() {
                   + Add your business
                 </button>
               </div>
+              {searchError && <p className="text-sm text-red-600 mt-2">{searchError}</p>}
+              {contactResults && (
+                <div className="mt-5 grid gap-3">
+                  <Section title="Matching Contacts">
+                    <ul className="list-disc pl-5 text-sm">
+                      {contactResults.contacts.map((c:any)=> (
+                        <li key={c.id}>{c.name || `${c.first_name||''} ${c.last_name||''}`.trim()} — {c.email||c.phone||''}</li>
+                      ))}
+                    </ul>
+                  </Section>
+                  {!!contactResults.businesses.length && (
+                    <Section title="Associated Businesses">
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {contactResults.businesses.map((b:any)=> (
+                          <div key={b.id} className="rounded-2xl border p-4 bg-white">
+                            <div className="font-semibold text-gray-900">{b.name||'Business'}</div>
+                            <div className="text-sm text-gray-500">{b.address||'—'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </Section>
+                  )}
+                  {!!contactResults.properties.length && (
+                    <Section title="Associated Properties">
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {contactResults.properties.map((p:any)=> (
+                          <div key={p.id} className="rounded-2xl border p-4 bg-white">
+                            <div className="font-semibold text-gray-900">{p.address||'Property'}</div>
+                            <div className="text-sm text-gray-500">BBL: {p.bbl||'—'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </Section>
+                  )}
+                </div>
+              )}
+              {contactResults && contactResults.contacts?.length===0 && contactResults.businesses?.length===0 && contactResults.properties?.length===0 && (
+                <p className="text-sm text-gray-600 mt-3">
+                  No linked records yet. Try a text search, or create a Business/Property first—new submissions will automatically link future searches.
+                </p>
+              )}
               <div className="mt-5 grid md:grid-cols-2 gap-3">
-                {results.map((b: any) => (
+                {searchResults.map((b: any) => (
                   <div key={b.id} className="rounded-2xl border p-4 bg-white">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="font-semibold text-gray-900">{b.name}</div>
-                        <div className="text-sm text-gray-500">{b.addr}</div>
+                        <div className="font-semibold text-gray-900">{b.name || b.business_name || b.title || "Business"}</div>
+                        <div className="text-sm text-gray-500">{b.addr || b.address || b.street || "—"}</div>
                         <div className="mt-2 flex flex-wrap gap-1">
-                          <Pill>Contacts: {b.contacts.length || 0}</Pill>
+                          <Pill>
+                            Contacts: {Array.isArray(b.contacts) ? b.contacts.length : b.contacts_count || 0}
+                          </Pill>
                         </div>
                       </div>
                       <button
                         className="rounded-lg px-3 py-2 text-white text-sm"
                         style={{ background: brand.teal }}
                         onClick={() => {
-                          setDetail({ type: "business", id: b.id });
+                          const id = b.id || b.business_id || b._id || b.key || String(Math.random());
+                          setDetail({ type: "business", id });
                           setView("details");
                         }}
                       >
@@ -434,19 +565,27 @@ export default function App() {
                     <div className="mt-3 text-sm">
                       <div className="text-gray-600">Associated Contacts (names only)</div>
                       <ul className="list-disc pl-5 text-gray-800">
-                        {(b.contacts || []).map((c: any) => (
-                          <li key={c.id}>{c.full_name}</li>
+                        {(Array.isArray(b.contacts) ? b.contacts : []).map((c: any, i: number) => (
+                          <li key={c.id || i}>{c.full_name || c.name || c.title || "Contact"}</li>
                         ))}
                       </ul>
                     </div>
                   </div>
                 ))}
+                {!isSearching && searchResults.length === 0 && (
+                  <div className="text-sm text-gray-500">No results yet. Try a search.</div>
+                )}
               </div>
             </Section>
           </>
         )}
 
-        {view === "add-business" && <AddBusinessView onCancel={() => setView("search-business")} />}
+        {view === "add-business" && (
+          <AddBusinessView
+            communityId={companyId || accessCompanyId}
+            onCancel={() => setView("search-business")}
+          />
+        )}
 
         {view === "search-property" && (
           <>
@@ -458,26 +597,35 @@ export default function App() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
-                <button className="rounded-xl px-4 py-2 text-white font-medium" style={{ background: brand.orange }}>
-                  Search
+                <button
+                  className="rounded-xl px-4 py-2 text-white font-medium disabled:opacity-50"
+                  style={{ background: brand.orange }}
+                  onClick={() => handleSearch("property")}
+                  disabled={isSearching}
+                >
+                  {isSearching ? "Searching…" : "Search"}
                 </button>
               </div>
+              {searchError && <p className="text-sm text-red-600 mt-2">{searchError}</p>}
               <div className="mt-5 grid md:grid-cols-2 gap-3">
-                {results.map((p: any) => (
+                {searchResults.map((p: any) => (
                   <div key={p.id} className="rounded-2xl border p-4 bg-white">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="font-semibold text-gray-900">{p.address}</div>
-                        <div className="text-sm text-gray-500">BBL: {p.bbl || "—"}</div>
+                        <div className="font-semibold text-gray-900">{p.address || p.addr || "Property"}</div>
+                        <div className="text-sm text-gray-500">BBL: {p.bbl || p.municipal_id || "—"}</div>
                         <div className="mt-2 flex flex-wrap gap-1">
-                          <Pill>Contacts: {p.contacts.length || 0}</Pill>
+                          <Pill>
+                            Contacts: {Array.isArray(p.contacts) ? p.contacts.length : p.contacts_count || 0}
+                          </Pill>
                         </div>
                       </div>
                       <button
                         className="rounded-lg px-3 py-2 text-white text-sm"
                         style={{ background: brand.teal }}
                         onClick={() => {
-                          setDetail({ type: "property", id: p.id });
+                          const id = p.id || p.property_id || p._id || p.key || String(Math.random());
+                          setDetail({ type: "property", id });
                           setView("details");
                         }}
                       >
@@ -487,13 +635,16 @@ export default function App() {
                     <div className="mt-3 text-sm">
                       <div className="text-gray-600">Associated Contacts (names only)</div>
                       <ul className="list-disc pl-5 text-gray-800">
-                        {(p.contacts || []).map((c: any) => (
-                          <li key={c.id}>{c.full_name}</li>
+                        {(Array.isArray(p.contacts) ? p.contacts : []).map((c: any, i: number) => (
+                          <li key={c.id || i}>{c.full_name || c.name || c.title || "Contact"}</li>
                         ))}
                       </ul>
                     </div>
                   </div>
                 ))}
+                {!isSearching && searchResults.length === 0 && (
+                  <div className="text-sm text-gray-500">No results yet. Try a search.</div>
+                )}
               </div>
             </Section>
           </>
@@ -512,7 +663,7 @@ export default function App() {
 }
 
 /** Hero */
-function Hero({ onTry }: { onTry: () => void }) {
+function Hero({ onTry, hideCta }: { onTry: () => void; hideCta?: boolean }) {
   return (
     <div className="relative overflow-hidden rounded-3xl border shadow-sm" style={{ background: brand.navy }}>
       <div className="p-8 md:p-12 text-white">
@@ -521,27 +672,29 @@ function Hero({ onTry }: { onTry: () => void }) {
           Let property owners and business representatives look up their record, verify identity, reveal contact details,
           submit updates, or add a missing business—without creating an account.
         </p>
-        <div className="mt-5 flex gap-3">
-          <a
-            className="px-4 py-2 rounded-xl text-sm font-medium"
-            style={{ background: brand.orange }}
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              onTry();
-            }}
-          >
-            ▶︎ Try the interactive mockup
-          </a>
-          <a
-            className="px-4 py-2 rounded-xl text-sm font-medium border border-white/30"
-            href="https://api.ginkgo.city/#!/community/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            View Ginkgo API
-          </a>
-        </div>
+        {!hideCta && (
+          <div className="mt-5 flex gap-3">
+            <a
+              className="px-4 py-2 rounded-xl text-sm font-medium"
+              style={{ background: brand.orange }}
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onTry();
+              }}
+            >
+              ▶︎ Try the interactive mockup
+            </a>
+            <a
+              className="px-4 py-2 rounded-xl text-sm font-medium border border-white/30"
+              href="https://api.ginkgo.city/#!/community/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              View Ginkgo API
+            </a>
+          </div>
+        )}
       </div>
       <div className="absolute -right-10 -bottom-10 w-64 h-64 rounded-full opacity-20" style={{ background: brand.teal }} />
     </div>
@@ -570,7 +723,7 @@ function DetailsView({
   const [revealMsg, setRevealMsg] = useState<string>("");
 
   function logEvent(name: string, payload: any) {
-    console.log("EVENT:", name, payload);
+    postEvent(name, { ...(payload || {}), communityId });
   }
 
   function handleReveal() {
@@ -726,8 +879,9 @@ function DetailsView({
                   phone: (data["Phone (+1…)"] as string) || undefined,
                   contact_type: (data["Role (Owner, Manager…)"] as string) || undefined,
                   notes: (data["Notes (optional)"] as string) || undefined,
+                  label: "contact.submit",
                 };
-                const out = await postJSON("/.netlify/functions/contact-submit", payload);
+                const out = await postJSON("/api/contact-submit", payload);
                 console.log("contact-submit →", out);
                 alert("Thanks! Your update was submitted.");
                 form.reset();
@@ -755,9 +909,9 @@ function DetailsView({
 }
 
 /** Add-business view (kept for completeness; still demo-only submit) */
-function AddBusinessView({ onCancel }: { onCancel: () => void }) {
+function AddBusinessView({ onCancel, communityId }: { onCancel: () => void; communityId: string }) {
   function logEvent(name: string, payload: any) {
-    console.log("EVENT:", name, payload);
+    postEvent(name, payload);
   }
   return (
     <div className="grid gap-6">
@@ -771,13 +925,40 @@ function AddBusinessView({ onCancel }: { onCancel: () => void }) {
       >
         <form
           className="grid md:grid-cols-2 gap-3"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            alert(
-              "(Demo) This would POST to /.netlify/functions/business-create → n8n /portal/business-create with the mapped fields."
-            );
-            logEvent("business_create_submitted", {});
-            (e.target as HTMLFormElement).reset();
+            try {
+              const form = e.target as HTMLFormElement;
+              const data = Object.fromEntries(new FormData(form).entries());
+              const payload: any = {
+                communityId,
+                name: (data["name"] as string) || "",
+                address: (data["address"] as string) || "",
+                email: (data["email"] as string) || undefined,
+                phone: (data["phone"] as string) || undefined,
+                url: (data["url"] as string) || undefined,
+                category: (data["category"] as string) || undefined,
+                tags: (data["tags"] as string) || undefined,
+                property_municipal_id: (data["property_municipal_id"] as string) || undefined,
+                unit_name: (data["unit_name"] as string) || undefined,
+                primary_contact_name: (data["primary_contact_name"] as string) || undefined,
+                primary_contact_email: (data["primary_contact_email"] as string) || undefined,
+                primary_contact_phone: (data["primary_contact_phone"] as string) || undefined,
+                secondary_contact_name: (data["secondary_contact_name"] as string) || undefined,
+                secondary_contact_email: (data["secondary_contact_email"] as string) || undefined,
+                secondary_contact_phone: (data["secondary_contact_phone"] as string) || undefined,
+                notes: (data["notes"] as string) || undefined,
+                label: "business.create",
+              };
+              const out = await postJSON("/api/business-create", payload);
+              console.log("business-create →", out);
+              alert("Thanks! Your business was submitted.");
+              logEvent("business_create_submitted", { name: payload.name });
+              form.reset();
+              onCancel();
+            } catch (err: any) {
+              alert(`Submit failed: ${err.message}`);
+            }
           }}
         >
           <input className="border rounded-lg p-2" name="name" placeholder="Business name*" required />
