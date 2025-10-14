@@ -532,6 +532,11 @@ export default function App() {
                   )}
                 </div>
               )}
+              {contactResults && contactResults.contacts?.length===0 && contactResults.businesses?.length===0 && contactResults.properties?.length===0 && (
+                <p className="text-sm text-gray-600 mt-3">
+                  No linked records yet. Try a text search, or create a Business/Property first—new submissions will automatically link future searches.
+                </p>
+              )}
               <div className="mt-5 grid md:grid-cols-2 gap-3">
                 {searchResults.map((b: any) => (
                   <div key={b.id} className="rounded-2xl border p-4 bg-white">

@@ -2,6 +2,7 @@ import { requireIdentityUser } from './_auth.mjs';
 import { getCommunityConfig, userHasAccess } from './_kv.mjs';
 import { ginkgo } from './_ginkgo.mjs';
 import { splitFullName, slug, ok, err } from './_util.mjs';
+import { assocAdd } from './_assoc.mjs';
 
 export async function handler(event, context){
   const auth = requireIdentityUser(context); if(!auth.ok) return err(auth.status, "Unauthorized");
@@ -37,6 +38,12 @@ export async function handler(event, context){
     const ids = Array.from(new Set([ ...(prop.contact_ids||[]), contactId ]));
     await ginkgo(communityId, ginkgo_api_key, `/properties/${recordId}`, { method:'PUT', body: JSON.stringify({ contact_ids: ids }) });
     eventAddress = prop.address; eventGeom = prop.the_geom;
+    // Maintain KV association index
+    await assocAdd(kv, contactId, { propertyId: recordId });
+  }
+  if(recordType === 'business' && recordId){
+    // Optional: update business metadata contact_ids if desired; always index KV
+    await assocAdd(kv, contactId, { businessId: recordId });
   }
 
   const ev = await ginkgo(communityId, ginkgo_api_key, `/events`, {

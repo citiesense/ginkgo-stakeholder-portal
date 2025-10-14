@@ -2,6 +2,7 @@ import { requireIdentityUser } from './_auth.mjs';
 import { getCommunityConfig, userHasAccess } from './_kv.mjs';
 import { ginkgo } from './_ginkgo.mjs';
 import { ok, err } from './_util.mjs';
+import { assocGetForContact } from './_assoc.mjs';
 
 function digits(s){ return String(s||'').replace(/\D+/g,''); }
 async function searchContacts(communityId, key, apiKey){
@@ -38,31 +39,28 @@ export async function handler(event, context){
   const contactIds = Array.from(contactsMap.keys());
   if (contactIds.length === 0) return ok({ ok:true, contacts: [], businesses: [], properties: [] });
 
-  let businesses = [];
-  try {
-    businesses = await ginkgo(communityId, ginkgo_api_key, `/businesses`, {
-      method:'POST', body: JSON.stringify({ contact_ids: contactIds })
-    });
-  } catch {
-    const c = contactsMap.values().next().value;
-    const broad = await ginkgo(communityId, ginkgo_api_key, `/businesses`, {
-      method:'POST', body: JSON.stringify({ q: c?.email || c?.name || '' })
-    });
-    businesses = (broad||[]).filter((b)=>Array.isArray(b.contact_ids) && b.contact_ids.some((id)=>contactIds.includes(id)));
+  // Use KV association index to get linked record IDs
+  const bizIdSet = new Set();
+  const propIdSet = new Set();
+  for (const cid of contactIds){
+    const a = await assocGetForContact(kv, cid);
+    (a.businesses||[]).forEach(id => bizIdSet.add(id));
+    (a.properties||[]).forEach(id => propIdSet.add(id));
   }
 
-  let properties = [];
-  try {
-    properties = await ginkgo(communityId, ginkgo_api_key, `/properties`, {
-      method:'POST', body: JSON.stringify({ contact_ids: contactIds })
-    });
-  } catch {
-    const c = contactsMap.values().next().value;
-    const broad = await ginkgo(communityId, ginkgo_api_key, `/properties`, {
-      method:'POST', body: JSON.stringify({ q: c?.email || c?.name || '' })
-    });
-    properties = (broad||[]).filter((p)=>Array.isArray(p.contact_ids) && p.contact_ids.some((id)=>contactIds.includes(id)));
+  async function fetchMany(ids, fn, batch=10){
+    const out = [];
+    const list = Array.from(new Set(ids));
+    for (let i=0;i<list.length;i+=batch){
+      const slice = list.slice(i, i+batch);
+      const got = await Promise.all(slice.map(fn));
+      out.push(...got);
+    }
+    return out;
   }
+
+  const businesses = await fetchMany(Array.from(bizIdSet), (id)=> ginkgo(communityId, ginkgo_api_key, `/businesses/${id}`, { method:'GET' }));
+  const properties = await fetchMany(Array.from(propIdSet), (id)=> ginkgo(communityId, ginkgo_api_key, `/properties/${id}`, { method:'GET' }));
 
   const safeBiz = (businesses||[]).map((b)=>({
     id: b.id, name: b.name, address: b.address, url: b.url, email: b.email, phone: b.phone,
