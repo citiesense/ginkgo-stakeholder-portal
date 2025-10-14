@@ -7,10 +7,9 @@ node_bundler="esbuild"
 included_files=["netlify/functions/**/*"]
  
 # Optional KV binding (if plan supports KV). Safe to keep; ignored if unavailable.
-[kv_namespaces]
-  [[kv_namespaces]]
-    binding = "KV"
-    id = "portal-kv"
+[[kv_namespaces]]
+binding = "KV"
+id = "portal-kv"
 [[redirects]]
 from="/api/*"
 to="/.netlify/functions/:splat"
