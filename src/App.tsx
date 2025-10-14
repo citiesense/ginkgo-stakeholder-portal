@@ -165,12 +165,14 @@ export default function App() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [contactResults, setContactResults] = useState<{contacts:any[]; businesses:any[]; properties:any[]}|null>(null);
 
   async function handleSearch(kind: "business" | "property") {
     try {
       setIsSearching(true);
       setSearchError(null);
       setSearchResults([]);
+      setContactResults(null);
       const communityId = companyId || accessCompanyId;
       if (!communityId) throw new Error("Community ID required");
       const out: any = await postJSON(`/api/search-${kind}`, {
@@ -183,6 +185,41 @@ export default function App() {
       postEvent("ui.search", { kind, query, count: items.length, communityId });
     } catch (e: any) {
       setSearchError(e.message || "Search failed");
+    } finally {
+      setIsSearching(false);
+    }
+  }
+
+  async function handlePrimarySearch() {
+    try {
+      setIsSearching(true);
+      setSearchError(null);
+      setSearchResults([]);
+      setContactResults(null);
+      const communityId = companyId || accessCompanyId;
+      if (!communityId) throw new Error("Community ID required");
+      const hasEmail = query.includes('@');
+      const digits = query.replace(/\D+/g, '');
+      if (hasEmail || digits.length >= 7) {
+        const out: any = await postJSON(`/api/search-associated-by-contact`, {
+          communityId,
+          email: hasEmail ? query : '',
+          phone: hasEmail ? '' : query,
+        });
+        if ((out?.contacts?.length || 0) + (out?.businesses?.length || 0) + (out?.properties?.length || 0) > 0) {
+          setContactResults({ contacts: out.contacts||[], businesses: out.businesses||[], properties: out.properties||[] });
+          return;
+        }
+      }
+      // Fallback to text searches
+      const [biz, prop]: any = await Promise.all([
+        postJSON(`/api/search-business`, { communityId, q: query }),
+        postJSON(`/api/search-property`, { communityId, q: query }),
+      ]);
+      const combined = [ ...(biz?.results||[]), ...(prop?.results||[]) ];
+      setSearchResults(combined);
+    } catch (e:any) {
+      setSearchError(e.message || 'Search failed');
     } finally {
       setIsSearching(false);
     }
@@ -435,18 +472,18 @@ export default function App() {
 
         {view === "search-business" && (
           <>
-            <Section title="Search Businesses">
+            <Section title="Search">
               <div className="flex gap-2 items-start">
                 <input
                   className="flex-1 border rounded-lg p-2"
-                  placeholder="Name or address…"
+                  placeholder="Email or phone (primary). Or enter text to search."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
                 <button
                   className="rounded-xl px-4 py-2 text-white font-medium disabled:opacity-50"
                   style={{ background: brand.orange }}
-                  onClick={() => handleSearch("business")}
+                  onClick={handlePrimarySearch}
                   disabled={isSearching}
                 >
                   {isSearching ? "Searching…" : "Search"}
@@ -460,6 +497,41 @@ export default function App() {
                 </button>
               </div>
               {searchError && <p className="text-sm text-red-600 mt-2">{searchError}</p>}
+              {contactResults && (
+                <div className="mt-5 grid gap-3">
+                  <Section title="Matching Contacts">
+                    <ul className="list-disc pl-5 text-sm">
+                      {contactResults.contacts.map((c:any)=> (
+                        <li key={c.id}>{c.name || `${c.first_name||''} ${c.last_name||''}`.trim()} — {c.email||c.phone||''}</li>
+                      ))}
+                    </ul>
+                  </Section>
+                  {!!contactResults.businesses.length && (
+                    <Section title="Associated Businesses">
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {contactResults.businesses.map((b:any)=> (
+                          <div key={b.id} className="rounded-2xl border p-4 bg-white">
+                            <div className="font-semibold text-gray-900">{b.name||'Business'}</div>
+                            <div className="text-sm text-gray-500">{b.address||'—'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </Section>
+                  )}
+                  {!!contactResults.properties.length && (
+                    <Section title="Associated Properties">
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {contactResults.properties.map((p:any)=> (
+                          <div key={p.id} className="rounded-2xl border p-4 bg-white">
+                            <div className="font-semibold text-gray-900">{p.address||'Property'}</div>
+                            <div className="text-sm text-gray-500">BBL: {p.bbl||'—'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </Section>
+                  )}
+                </div>
+              )}
               <div className="mt-5 grid md:grid-cols-2 gap-3">
                 {searchResults.map((b: any) => (
                   <div key={b.id} className="rounded-2xl border p-4 bg-white">
