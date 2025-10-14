@@ -412,7 +412,7 @@ export default function App() {
                   onClick={async () => {
                     try {
                       if (!companyId || !apiKey) return alert("Enter Community ID and API Key");
-                      const out = await postJSON("/.netlify/functions/portal-credentials", {
+                      const out = await postJSON("/api/portal-credentials", {
                         communityId: companyId,
                         apiKey,
                       });
@@ -427,7 +427,7 @@ export default function App() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                Calls <code>/.netlify/functions/portal-credentials</code>.
+                Calls <code>/api/portal-credentials</code>.
               </p>
             </Section>
           </>
