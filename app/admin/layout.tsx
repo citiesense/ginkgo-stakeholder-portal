@@ -29,6 +29,12 @@ export default async function AdminLayout({
             Dashboard
           </Link>
           <Link
+            href="/admin/onboard"
+            className="block rounded px-4 py-2 hover:bg-gray-800"
+          >
+            Onboard Tenant
+          </Link>
+          <Link
             href="/"
             className="block rounded px-4 py-2 hover:bg-gray-800"
           >
