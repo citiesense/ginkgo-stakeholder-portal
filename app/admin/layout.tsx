@@ -35,6 +35,12 @@ export default async function AdminLayout({
             Onboard Tenant
           </Link>
           <Link
+            href="/admin/integrations"
+            className="block rounded px-4 py-2 hover:bg-gray-800"
+          >
+            Integrations
+          </Link>
+          <Link
             href="/"
             className="block rounded px-4 py-2 hover:bg-gray-800"
           >
