@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
+import { handleCorsPreflights, applyCorsHeaders, CORS_CONFIG } from '@/lib/cors'
 
 const prisma = new PrismaClient()
 
@@ -22,26 +23,36 @@ export async function POST(
     const { provider } = params
     const body = await request.json()
 
+    let response: NextResponse
+
     // Mailchimp webhook format
     if (provider === 'mailchimp') {
-      return handleMailchimpWebhook(body)
+      response = await handleMailchimpWebhook(body)
+    } else if (provider === 'constant_contact') {
+      // Constant Contact webhook format
+      response = await handleConstantContactWebhook(body)
+    } else {
+      response = NextResponse.json({ error: 'Unknown provider' }, { status: 400 })
     }
 
-    // Constant Contact webhook format
-    if (provider === 'constant_contact') {
-      return handleConstantContactWebhook(body)
-    }
-
-    return NextResponse.json({ error: 'Unknown provider' }, { status: 400 })
+    // Apply CORS headers for webhook endpoints
+    return applyCorsHeaders(response, request.headers.get('origin'), CORS_CONFIG.public)
   } catch (error) {
     console.error('Webhook error:', error)
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: 'Failed to process webhook' },
       { status: 400 }
     )
+    return applyCorsHeaders(response, null, CORS_CONFIG.public)
   } finally {
     await prisma.$disconnect()
   }
+}
+
+export async function OPTIONS(request: NextRequest) {
+  // Handle CORS preflight for webhooks
+  const corsResponse = handleCorsPreflights(request, CORS_CONFIG.public)
+  return corsResponse || new NextResponse(null, { status: 405 })
 }
 
 /**

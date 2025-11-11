@@ -4,8 +4,10 @@ import { useState } from 'react'
 import { listEspConnections } from '@/lib/actions/esp'
 import EspConnectionForm from './esp-form'
 import { useEffect } from 'react'
+import { isFeatureEnabled } from '@/lib/featureFlags'
 
 export default function IntegrationsPage() {
+  const espEnabled = isFeatureEnabled('ESP_ENABLED')
   const [connections, setConnections] = useState<
     Array<{
       id: string
@@ -45,6 +47,26 @@ export default function IntegrationsPage() {
 
   const hasMailchimp = connections.some(c => c.provider === 'mailchimp')
   const hasConstantContact = connections.some(c => c.provider === 'constant_contact')
+
+  if (!espEnabled) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Integrations</h1>
+          <p className="mt-2 text-gray-600">ESP integrations are currently disabled</p>
+        </div>
+        <div className="rounded-lg bg-amber-50 p-6 border border-amber-200">
+          <h3 className="font-semibold text-amber-900">Feature Disabled</h3>
+          <p className="mt-2 text-amber-800">
+            Email Service Provider integrations are not currently enabled. Contact your system administrator to enable this feature.
+          </p>
+          <p className="mt-2 text-sm text-amber-700">
+            Set <code className="font-mono">FEATURE_ESP_ENABLED=true</code> in your environment configuration.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
