@@ -3,11 +3,6 @@
  * Handles merge fields, subscriber management, and basic operations
  */
 
-interface MergeField {
-  name: string
-  type: 'text' | 'email' | 'number' | 'date' | 'dropdown' | 'phone' | 'url' | 'imageref'
-}
-
 interface MailchimpResponse {
   id?: string
   email_address?: string
@@ -163,14 +158,6 @@ export class ConstantContactClient {
    */
   async ensureCustomFields(): Promise<boolean> {
     try {
-      const fields = [
-        'first_name',
-        'last_name',
-        'business_name',
-        'property_address',
-        'owner_type',
-      ]
-
       // Constant Contact has predefined fields, just validate access
       const response = await fetch(`${this.getBaseUrl()}/contact_custom_fields`, {
         headers: this.getAuthHeader(),
@@ -181,6 +168,13 @@ export class ConstantContactClient {
       console.error('Constant Contact ensureCustomFields error:', error)
       return false
     }
+  }
+
+  /**
+   * Alias for ensureCustomFields (for compatibility with MailchimpClient interface)
+   */
+  async ensureMergeFields(): Promise<boolean> {
+    return this.ensureCustomFields()
   }
 
   /**
@@ -227,6 +221,13 @@ export class ConstantContactClient {
       return false
     }
   }
+
+  /**
+   * Alias for addOrUpdateContact (for compatibility with MailchimpClient interface)
+   */
+  async addOrUpdateSubscriber(email: string, data: Record<string, any>): Promise<boolean> {
+    return this.addOrUpdateContact(email, data)
+  }
 }
 
 /**
@@ -236,7 +237,7 @@ export function createEspClient(
   provider: 'mailchimp' | 'constant_contact',
   accessKey: string,
   listId: string,
-  accessSecret?: string
+  _accessSecret?: string
 ): MailchimpClient | ConstantContactClient {
   if (provider === 'mailchimp') {
     return new MailchimpClient(accessKey, listId)

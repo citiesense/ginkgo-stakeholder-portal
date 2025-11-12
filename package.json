@@ -8,8 +8,7 @@
     "start": "next start",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:migrate:deploy": "prisma migrate deploy",
-    "prebuild": "npx prisma generate"
+    "prisma:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@aws-sdk/util-utf8-node": "^3.259.0",

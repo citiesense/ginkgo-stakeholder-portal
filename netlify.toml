@@ -1,6 +1,6 @@
 [build]
-# Generate Prisma types and build Next.js
-command = "npx prisma generate && npm run build"
+# Build Next.js (Prisma types already pre-generated in repo)
+command = "npm run build"
 publish = ".next"
 
 [build.environment]

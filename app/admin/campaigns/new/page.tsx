@@ -2,8 +2,7 @@
 
 import { useSearchParams } from 'next/navigation'
 import { useState } from 'react'
-import { createCampaign } from '@/lib/actions/campaign'
-import { type CreateCampaignInput, type VerificationRecipientData } from '@/lib/validation/campaign'
+import { type VerificationRecipientData } from '@/lib/validation/campaign'
 import { generateVerificationCsv, downloadCsv } from '@/lib/csv'
 import CampaignWizard from './wizard'
 

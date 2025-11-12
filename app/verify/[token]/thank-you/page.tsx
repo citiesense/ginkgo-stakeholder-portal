@@ -1,4 +1,4 @@
-export default function ThankYouPage({ params }: { params: { token: string } }) {
+export default function ThankYouPage({ params: _params }: { params: Promise<{ token: string }> }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
       <div className="max-w-md rounded-lg bg-white p-8 shadow-lg text-center">

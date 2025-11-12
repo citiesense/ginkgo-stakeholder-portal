@@ -16,7 +16,6 @@ export default function IntegrationsPage() {
       createdAt: Date
     }>
   >([])
-  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState<'mailchimp' | 'constant_contact'>('mailchimp')
 
@@ -25,14 +24,11 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     const fetchConnections = async () => {
-      setLoading(true)
       try {
         const conns = await listEspConnections(tenantId)
         setConnections(conns)
       } catch (error) {
         console.error('Failed to fetch connections:', error)
-      } finally {
-        setLoading(false)
       }
     }
 

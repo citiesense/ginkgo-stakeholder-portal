@@ -54,8 +54,8 @@ export function decrypt(ciphertext: string): string {
     const decipher = createDecipheriv('aes-256-gcm', key, iv)
     decipher.setAuthTag(authTag)
 
-    // Decrypt the ciphertext
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8')
+    // Decrypt the ciphertext (encrypted is already a Buffer)
+    let decrypted = decipher.update(encrypted, undefined, 'utf8')
     decrypted += decipher.final('utf8')
 
     return decrypted

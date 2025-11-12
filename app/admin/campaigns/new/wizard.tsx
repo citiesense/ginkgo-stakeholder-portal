@@ -19,9 +19,9 @@ export default function CampaignWizard({ tenantId, onCampaignCreated }: Campaign
 
   const [formData, setFormData] = useState({
     campaignName: '',
-    audienceType: 'both' as const,
+    audienceType: 'both' as 'property_owners' | 'business_owners' | 'both',
     filtersJson: '{}',
-    deliveryMethod: 'csv_export' as const,
+    deliveryMethod: 'csv_export' as 'csv_export' | 'esp_push',
     hasEspConnection: false, // Would be fetched from tenant
   })
 

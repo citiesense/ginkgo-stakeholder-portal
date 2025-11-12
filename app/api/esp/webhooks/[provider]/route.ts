@@ -17,10 +17,10 @@ const prisma = new PrismaClient()
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { provider: string } }
+  { params }: { params: Promise<{ provider: string }> }
 ) {
   try {
-    const { provider } = params
+    const { provider } = await params
     const body = await request.json()
 
     let response: NextResponse

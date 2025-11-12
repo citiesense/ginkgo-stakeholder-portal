@@ -11,11 +11,11 @@ const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:3000'
  * CSV columns: email,first_name,last_name,business_name,property_address,owner_type,verification_link
  */
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { campaignId: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ campaignId: string }> }
 ) {
   try {
-    const { campaignId } = params
+    const { campaignId } = await params
 
     // Fetch campaign
     const campaign = await prisma.verificationCampaign.findUnique({

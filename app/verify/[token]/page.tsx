@@ -1,8 +1,8 @@
 import { validateVerificationToken } from '@/lib/verifyToken'
 import VerificationForm from './form'
 
-export default async function VerifyPage({ params }: { params: { token: string } }) {
-  const { token } = params
+export default async function VerifyPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params
 
   // Validate token on server
   const validation = await validateVerificationToken(token)

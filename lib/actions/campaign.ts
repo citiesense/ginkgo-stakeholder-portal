@@ -1,6 +1,5 @@
 'use server'
 
-import { redirect } from 'next/navigation'
 import { PrismaClient } from '@prisma/client'
 import { fetchAllEntities, type Entity } from '@/lib/ginkgoClient'
 import { createCampaignSchema, type CreateCampaignInput, type VerificationRecipientData } from '@/lib/validation/campaign'
@@ -41,7 +40,7 @@ function matchContactsToEntities(
   businesses: GinkgoBusiness[],
   properties: GinkgoProperty[],
   audienceType: 'property_owners' | 'business_owners' | 'both',
-  filters: Record<string, any>
+  _filters: Record<string, any>
 ): VerificationRecipientData[] {
   const recipients: VerificationRecipientData[] = []
   const tokenExpiry = generateTokenExpiry(60)
@@ -68,7 +67,7 @@ function matchContactsToEntities(
           primaryRecordId: business.id,
           token: generateVerificationToken(),
           tokenExpiresAt: tokenExpiry,
-          email: contact.email,
+          email: contact.email!,
           firstName: contact.first_name,
           lastName: contact.last_name,
           businessName: business.name,
@@ -96,7 +95,7 @@ function matchContactsToEntities(
           primaryRecordId: property.id,
           token: generateVerificationToken(),
           tokenExpiresAt: tokenExpiry,
-          email: contact.email,
+          email: contact.email!,
           firstName: contact.first_name,
           lastName: contact.last_name,
           businessName: contact.organization_name,
@@ -114,7 +113,7 @@ function matchContactsToEntities(
         primaryRecordId: 0, // Generic recipient without specific entity match
         token: generateVerificationToken(),
         tokenExpiresAt: tokenExpiry,
-        email: contact.email,
+        email: contact.email!,
         firstName: contact.first_name,
         lastName: contact.last_name,
         businessName: contact.organization_name,
