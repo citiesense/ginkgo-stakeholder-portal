@@ -1,10 +1,17 @@
 [build]
-command = "npm run build"
+# Generate Prisma types and build Next.js
+command = "npx prisma generate && npm run build"
 publish = ".next"
 
 [build.environment]
 NODE_VERSION = "18"
 NPM_VERSION = "9"
+
+# Optional: Run migrations after build succeeds
+# Uncomment the line below if you want to auto-migrate on each deploy
+# On first deploy, you may need to manually run migrations from Supabase SQL Editor
+# Or use a Netlify function / build plugin to run: npx prisma migrate deploy
+# command = "npx prisma generate && npm run build && npx prisma migrate deploy"
 
 [[redirects]]
 from = "/*"
