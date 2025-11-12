@@ -1,4 +1,5 @@
 [build]
+# Build Next.js (Prisma types already pre-generated in repo)
 command = "npm run build"
 publish = ".next"
 
@@ -6,10 +7,11 @@ publish = ".next"
 NODE_VERSION = "18"
 NPM_VERSION = "9"
 
-[[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+# Optional: Run migrations after build succeeds
+# Uncomment the line below if you want to auto-migrate on each deploy
+# On first deploy, you may need to manually run migrations from Supabase SQL Editor
+# Or use a Netlify function / build plugin to run: npx prisma migrate deploy
+# command = "npx prisma generate && npm run build && npx prisma migrate deploy"
 
 [[headers]]
 for = "/*"
@@ -23,3 +25,6 @@ Referrer-Policy = "strict-origin-when-cross-origin"
 for = "/_next/static/*"
 [headers.values]
 Cache-Control = "public, max-age=31536000, immutable"
+
+[[plugins]]
+package = "@netlify/plugin-nextjs"

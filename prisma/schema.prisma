@@ -10,32 +10,96 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String     @id @default(cuid())
-  email     String     @unique
-  name      String?
-  password  String
-  role      String     @default("user")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+model Tenant {
+  id                String   @id @default(cuid())
+  companyId         Int
+  name              String
+  apiBaseUrl        String   @default("https://api.ginkgo.city")
+  apiKeyCiphertext  String   // AES-GCM encrypted w/ ENCRYPTION_KEY
+  brandLogoUrl      String?  // optional white-label
+  brandColor        String?  // hex
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  campaigns         VerificationCampaign[]
+  espConnections    EspConnection[]
 }
 
-model Stakeholder {
-  id        String     @id @default(cuid())
-  name      String
-  email     String?
-  phone     String?
-  type      String     // e.g., "business", "resident", "organization"
-  status    String     @default("active")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+model VerificationCampaign {
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String
+  audienceType  String   // 'property_owners' | 'business_owners' | 'both'
+  filtersJson   Json
+  createdBy     String
+  createdAt     DateTime @default(now())
+
+  recipients    VerificationRecipient[]
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
-model Program {
-  id        String     @id @default(cuid())
-  name      String
-  description String?
-  status    String     @default("active")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+model VerificationRecipient {
+  id               String   @id @default(cuid())
+  campaignId       String
+  contactId        Int
+  primaryType      String   // 'Property' | 'Business'
+  primaryRecordId  Int
+  token            String   @unique
+  tokenExpiresAt   DateTime
+  status           String   // 'pending' | 'visited' | 'submitted' | 'expired' | 'bounced' | 'unsubscribed'
+  espMessageId     String?
+  lastActivityAt   DateTime?
+  createdAt        DateTime @default(now())
+
+  campaign         VerificationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  events           VerificationEvent[]
+  changesets       ContactChangeSet[]
+
+  @@index([campaignId])
+  @@index([token])
+  @@index([status])
+}
+
+model VerificationEvent {
+  id           String   @id @default(cuid())
+  recipientId  String
+  type         String   // 'link_opened' | 'form_submitted' | 'field_changed' | 'unsubscribed' | 'bounced'
+  meta         Json
+  createdAt    DateTime @default(now())
+
+  recipient    VerificationRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId])
+  @@index([type])
+}
+
+model ContactChangeSet {
+  id           String   @id @default(cuid())
+  recipientId  String
+  beforeJson   Json
+  afterJson    Json
+  reviewerId   String?
+  approvedAt   DateTime?
+
+  recipient    VerificationRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId])
+}
+
+model EspConnection {
+  id            String   @id @default(cuid())
+  tenantId      String
+  provider      String   // 'mailchimp' | 'constant_contact'
+  accessKey     String
+  accessSecret  String?
+  listId        String?
+  meta          Json
+  createdAt     DateTime @default(now())
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
