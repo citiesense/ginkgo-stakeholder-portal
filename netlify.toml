@@ -13,11 +13,6 @@ NPM_VERSION = "9"
 # Or use a Netlify function / build plugin to run: npx prisma migrate deploy
 # command = "npx prisma generate && npm run build && npx prisma migrate deploy"
 
-[[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
-
 [[headers]]
 for = "/*"
 [headers.values]
