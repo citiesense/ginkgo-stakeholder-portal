@@ -1,9 +1,7 @@
 'use server'
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { verifyFormSchema, type VerifyFormInput } from '@/lib/validation/verify'
-
-const prisma = new PrismaClient()
 
 export interface VerifySubmissionResult {
   success: boolean

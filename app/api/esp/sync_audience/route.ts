@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { createEspClient } from '@/lib/espClient'
 import { z } from 'zod'
-
-const prisma = new PrismaClient()
 
 const syncSchema = z.object({
   tenantId: z.string().min(1),
@@ -109,7 +107,5 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to sync audience' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

@@ -1,11 +1,9 @@
 'use server'
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { fetchAllEntities, type Entity } from '@/lib/ginkgoClient'
 import { createCampaignSchema, type CreateCampaignInput, type VerificationRecipientData } from '@/lib/validation/campaign'
 import { generateVerificationToken, generateTokenExpiry } from '@/lib/token'
-
-const prisma = new PrismaClient()
 
 interface GinkgoContact {
   id?: number

@@ -1,9 +1,7 @@
 'use server'
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { espConnectionSchema, type EspConnectionInput } from '@/lib/validation/esp'
-
-const prisma = new PrismaClient()
 
 /**
  * Save or update ESP connection

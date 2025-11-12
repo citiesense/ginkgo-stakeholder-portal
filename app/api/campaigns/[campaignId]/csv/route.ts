@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:3000'
 
@@ -100,7 +98,5 @@ export async function GET(
       { error: 'Failed to export CSV' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }

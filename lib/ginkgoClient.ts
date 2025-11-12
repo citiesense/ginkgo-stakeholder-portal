@@ -1,6 +1,6 @@
 'use server'
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { decrypt } from '@/lib/encrypt'
 
 export type Entity = 'contacts' | 'businesses' | 'properties' | 'organizations'
@@ -172,8 +172,6 @@ export async function fetchAllEntities(
   tenantId: string,
   entities: Entity[]
 ): Promise<Record<Entity, any[]>> {
-  const prisma = new PrismaClient()
-
   try {
     // Fetch tenant from database
     const tenant = await prisma.tenant.findUnique({

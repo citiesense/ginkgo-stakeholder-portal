@@ -1,9 +1,7 @@
 'use server'
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { type VerificationSummary } from '@/lib/validation/verify'
-
-const prisma = new PrismaClient()
 
 export interface TokenValidationResult {
   valid: boolean
@@ -88,8 +86,6 @@ export async function validateVerificationToken(token: string): Promise<TokenVal
       valid: false,
       error: 'An error occurred while validating your link',
     }
-  } finally {
-    await prisma.$disconnect()
   }
 }
 
@@ -115,7 +111,5 @@ export async function getRecipientDetails(recipientId: string): Promise<Verifica
   } catch (error) {
     console.error('Failed to fetch recipient details:', error)
     return null
-  } finally {
-    await prisma.$disconnect()
   }
 }

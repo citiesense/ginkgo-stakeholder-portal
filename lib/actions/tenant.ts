@@ -1,11 +1,9 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { encrypt } from '@/lib/encrypt'
 import { createTenantSchema, type CreateTenantInput } from '@/lib/validation/tenant'
-
-const prisma = new PrismaClient()
 
 export async function createTenant(input: CreateTenantInput) {
   try {

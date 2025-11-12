@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { handleCorsPreflights, applyCorsHeaders, CORS_CONFIG } from '@/lib/cors'
-
-const prisma = new PrismaClient()
 
 /**
  * POST /api/esp/webhooks/[provider]
@@ -44,8 +42,6 @@ export async function POST(
       { status: 400 }
     )
     return applyCorsHeaders(response, null, CORS_CONFIG.public)
-  } finally {
-    await prisma.$disconnect()
   }
 }
 
