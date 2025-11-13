@@ -1,13 +1,22 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto'
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
+let derivedKey: Buffer | null = null
 
-if (!ENCRYPTION_KEY) {
-  throw new Error('ENCRYPTION_KEY environment variable is required')
+function getKey(): Buffer {
+  if (derivedKey) {
+    return derivedKey
+  }
+
+  const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
+
+  if (!ENCRYPTION_KEY) {
+    throw new Error('ENCRYPTION_KEY environment variable is required')
+  }
+
+  // Derive a 32-byte key from ENCRYPTION_KEY using scrypt
+  derivedKey = scryptSync(ENCRYPTION_KEY, 'ginkgo', 32)
+  return derivedKey
 }
-
-// Derive a 32-byte key from ENCRYPTION_KEY using scrypt
-const key = scryptSync(ENCRYPTION_KEY, 'ginkgo', 32)
 
 /**
  * Encrypts plaintext using AES-256-GCM
@@ -15,6 +24,8 @@ const key = scryptSync(ENCRYPTION_KEY, 'ginkgo', 32)
  */
 export function encrypt(plaintext: string): string {
   try {
+    const key = getKey()
+
     // Generate a random 96-bit (12-byte) IV for GCM
     const iv = randomBytes(12)
 
@@ -42,6 +53,8 @@ export function encrypt(plaintext: string): string {
  */
 export function decrypt(ciphertext: string): string {
   try {
+    const key = getKey()
+
     // Decode from base64
     const combined = Buffer.from(ciphertext, 'base64')
 

@@ -50,7 +50,7 @@ DATABASE_URL="postgresql://postgres:[YOUR_PASSWORD]@db.YOUR_PROJECT.supabase.co:
 
 Example:
 ```bash
-DATABASE_URL="postgresql://postgres:abc123xyz@db.bjkibervxdmuuafrbccq.supabase.co:5432/postgres"
+DATABASE_URL="postgresql://postgres:[YOUR_PASSWORD]@db.[YOUR_PROJECT_ID].supabase.co:5432/postgres"
 ```
 
 ### 3. Verify Database Connection

@@ -152,7 +152,7 @@ You should see:
 ### Using psql CLI
 
 ```bash
-psql "postgresql://postgres:YOUR_PASSWORD@db.bjkibervxdmuuafrbccq.supabase.co:5432/postgres" \
+psql "postgresql://postgres:YOUR_PASSWORD@db.[YOUR_PROJECT_ID].supabase.co:5432/postgres" \
   -c "\dt"
 ```
 
