@@ -81,24 +81,49 @@ export function GinkgoSetupForm({ onSuccess }: GinkgoSetupFormProps) {
       setValidationResult(data)
 
       if (data.success) {
-        // Store credentials in sessionStorage for use in campaign creation
-        sessionStorage.setItem(
-          'ginkgo_credentials',
-          JSON.stringify({
-            communityId,
-            apiKey,
-            apiBaseUrl,
-            validatedAt: new Date().toISOString(),
+        // Set up tenant in database
+        try {
+          const tenantResponse = await fetch('/api/ginkgo/setup-tenant', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              communityId,
+              apiKey,
+              apiBaseUrl,
+              tenantName: `Community ${communityId}`,
+            }),
           })
-        )
 
-        if (onSuccess) {
-          onSuccess({
-            communityId,
-            apiKey,
-            apiBaseUrl,
-            counts: data.counts,
-          })
+          if (tenantResponse.ok) {
+            const tenantData = await tenantResponse.json()
+
+            // Store credentials and tenant ID in sessionStorage for use in campaign creation
+            sessionStorage.setItem(
+              'ginkgo_credentials',
+              JSON.stringify({
+                communityId,
+                apiKey,
+                apiBaseUrl,
+                tenantId: tenantData.tenantId,
+                validatedAt: new Date().toISOString(),
+              })
+            )
+
+            if (onSuccess) {
+              onSuccess({
+                communityId,
+                apiKey,
+                apiBaseUrl,
+                counts: data.counts,
+              })
+            }
+          } else {
+            console.error('Failed to set up tenant')
+          }
+        } catch (error) {
+          console.error('Error setting up tenant:', error)
         }
       }
     } catch (error) {
