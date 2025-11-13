@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import Link from 'next/link'
+import { LogoutButton } from './logout-button'
 
 export default async function AdminLayout({
   children,
@@ -11,7 +12,7 @@ export default async function AdminLayout({
 
   // Check authentication - redirect to login if not authenticated
   if (!user) {
-    redirect('/')
+    redirect('/auth/login')
   }
 
   return (
@@ -27,6 +28,18 @@ export default async function AdminLayout({
             className="block rounded px-4 py-2 hover:bg-gray-800"
           >
             Dashboard
+          </Link>
+          <Link
+            href="/admin/campaigns"
+            className="block rounded px-4 py-2 hover:bg-gray-800"
+          >
+            Campaigns
+          </Link>
+          <Link
+            href="/admin/campaigns/new"
+            className="block rounded px-4 py-2 hover:bg-gray-800"
+          >
+            New Campaign
           </Link>
           <Link
             href="/admin/onboard"
@@ -55,8 +68,11 @@ export default async function AdminLayout({
         <header className="bg-white shadow">
           <div className="flex items-center justify-between px-6 py-4">
             <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-            <div className="text-gray-600">
-              Welcome, <span className="font-semibold">{user.email}</span>
+            <div className="flex items-center gap-4">
+              <div className="text-gray-600">
+                Welcome, <span className="font-semibold">{user.email}</span>
+              </div>
+              <LogoutButton />
             </div>
           </div>
         </header>
