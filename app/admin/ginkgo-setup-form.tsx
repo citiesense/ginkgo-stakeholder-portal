@@ -26,7 +26,7 @@ interface StoredCredentials {
 export function GinkgoSetupForm({ onSuccess }: GinkgoSetupFormProps) {
   const [communityId, setCommunityId] = useState('')
   const [apiKey, setApiKey] = useState('')
-  const [apiBaseUrl, setApiBaseUrl] = useState('https://api.ginkgobioworks.com')
+  const [apiBaseUrl, setApiBaseUrl] = useState('https://api.ginkgo.city')
   const [loading, setLoading] = useState(false)
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
   const [showApiKey, setShowApiKey] = useState(false)
@@ -259,7 +259,7 @@ export function GinkgoSetupForm({ onSuccess }: GinkgoSetupFormProps) {
             type="url"
             value={apiBaseUrl}
             onChange={(e) => setApiBaseUrl(e.target.value)}
-            placeholder="https://api.ginkgobioworks.com"
+            placeholder="https://api.ginkgo.city"
             disabled={loading}
             required
             className="mt-1 w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100"
